@@ -1,6 +1,10 @@
 package domain;
 
+import java.time.DayOfWeek;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 
 public class Order
 {
@@ -14,7 +18,7 @@ public class Order
         this.orderNr = orderNr;
         this.isStudentOrder = isStudentOrder;
 
-        tickets = new ArrayList<MovieTicket>();
+        tickets = new ArrayList<>();
     }
 
     public int getOrderNr()
@@ -22,14 +26,56 @@ public class Order
         return orderNr;
     }
 
-    public void addSeatReservation(MovieTicket ticket)
+    void addSeatReservation(MovieTicket ticket)
     {
         tickets.add(ticket);
     }
 
-    public double calculatePrice()
+    double calculatePrice()
     {
-        return 0;
+        double orderPrice = 0;
+
+        // Sort array, premium tickets first
+        tickets.sort((MovieTicket ticket1, MovieTicket ticket2) -> Boolean.compare(
+                !ticket1.isPremiumTicket(),
+                !ticket2.isPremiumTicket()
+        ));
+
+        // Loop through tickets and calculate total price
+        for (int i = 0; i < tickets.size(); i++) {
+            double ticketPrice = tickets.get(i).getPrice();
+            double discountPercentage = 0;
+            boolean isWeekday = isWeekday(tickets.get(i));
+
+            // All second tickets are free for students or on weekdays
+            if ((isStudentOrder || isWeekday) && ((i+1) % 2) == 0) continue;
+
+            // Premium tickets cost extra
+            if (tickets.get(i).isPremiumTicket()) {
+                if (isStudentOrder) {
+                    ticketPrice += 2;
+                } else {
+                    ticketPrice += 3;
+                }
+            }
+
+            // Group discount applies during weekends
+            if (!isWeekday && tickets.size() > 5) {
+                discountPercentage += 10;
+            }
+
+            // Apply discount and add to orderPrice
+            ticketPrice -= ticketPrice * (discountPercentage / 100);
+            orderPrice += ticketPrice;
+        }
+
+        return orderPrice;
+    }
+
+    private boolean isWeekday(MovieTicket ticket) {
+        LocalDateTime localDateTime = ticket.getMovieScreening().getDateAndTime();
+        DayOfWeek dayOfWeek = localDateTime.getDayOfWeek();
+        return ((dayOfWeek != DayOfWeek.SATURDAY) && (dayOfWeek != DayOfWeek.SUNDAY));
     }
 
     public void export(TicketExportFormat exportFormat)
